@@ -9,22 +9,23 @@ from PyPDF2 import PdfFileReader
 
 def format_head(description, serial_number, pass_type_identifier):
     return f'''{{
-        "organizationName": "",
-        "description": "{description}",
-        "serialNumber": "{serial_number}",
-        "passTypeIdentifier": "{pass_type_identifier}",
-        "formatVersion": 1,
-        "boardingPass": {{
-            "primaryFields": ['''
+    "organizationName": "",
+    "description": "{description}",
+    "serialNumber": "{serial_number}",
+    "passTypeIdentifier": "{pass_type_identifier}",
+    "formatVersion": 1,
+    "boardingPass": {{
+        "primaryFields": ['''
 
 
 def format_field(key, value, label):
-    return f'''
-                {{
-                    "value": "{value}",
-                    "key": "{key}",
-                    "label": "{label}"
-                }}'''
+    return \
+        f'''
+            {{
+                "value": "{value}",
+                "key": "{key}",
+                "label": "{label}"
+            }}'''
 
 
 def format_footer():
