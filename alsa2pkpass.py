@@ -1,6 +1,5 @@
 from datetime import datetime
 from hashlib import sha1
-from tempfile import mkdtemp
 from re import compile
 from sys import argv
 from zipfile import ZipFile
@@ -52,7 +51,7 @@ def format_manifest(sha1sum):
 def create_pkpass(name, pass_, manifest):
     try:
         pass_file = ZipFile(name, 'x')
-    except FileExistsError as e:
+    except FileExistsError:
         exit("File " + name + " already exists.")
 
     pass_file.writestr('pass.json', pass_)
@@ -60,7 +59,7 @@ def create_pkpass(name, pass_, manifest):
 
 
 def main():
-    if len(argv)<2 or argv[1] is None:
+    if len(argv) < 2 or argv[1] is None:
         exit("Specify input PDF.")
 
     try:
@@ -106,7 +105,9 @@ def main():
         format_footer()
     )
 
-    ticket_manifest = format_manifest(str(sha1(ticket.encode('utf-8')).hexdigest()))
+    ticket_manifest = format_manifest(
+        str(sha1(ticket.encode('utf-8')).hexdigest())
+    )
 
     return_ticket = (
         format_head(services[1], localizers[1] + "_r", dates[1], times[1]) +
@@ -114,7 +115,9 @@ def main():
         format_footer()
     )
 
-    return_ticket_manifest = format_manifest(str(sha1(return_ticket.encode('utf-8')).hexdigest()))
+    return_ticket_manifest = format_manifest(
+        str(sha1(return_ticket.encode('utf-8')).hexdigest())
+    )
 
     ticket_name = 'ticket_' + localizers[0] + '.pkpass'
     print("Writing " + ticket_name + " ...")
@@ -129,4 +132,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
