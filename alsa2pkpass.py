@@ -1,14 +1,64 @@
-# -*- coding: utf-8 -*-
-
+from hashlib import sha1
 from tempfile import mkdtemp
 from re import compile
 from sys import argv
+from zipfile import ZipFile
 
 from PyPDF2 import PdfFileReader
-from ypassbook import Pass, Field
 
 
-pdf = PdfFileReader(argv[1])
+def format_head(description, serial_number, pass_type_identifier):
+    return f'''{{
+        "organizationName": "",
+        "description": "{description}",
+        "serialNumber": "{serial_number}",
+        "passTypeIdentifier": "{pass_type_identifier}",
+        "formatVersion": 1,
+        "boardingPass": {{
+            "primaryFields": ['''
+
+
+def format_field(key, value, label):
+    return f'''
+                {{
+                    "value": "{value}",
+                    "key": "{key}",
+                    "label": "{label}"
+                }}'''
+
+
+def format_footer():
+    return '''
+        ],
+        "transitType": "PKTransitTypeGeneric"
+    },
+    "teamIdentifier": ""
+}'''
+
+
+def format_manifest(sha1sum):
+    return f'''{{
+    "pass.json": "{sha1sum}"
+}}'''
+
+
+def create_pkpass(name, pass_, manifest):
+    try:
+        pass_file = ZipFile(name, 'x')
+    except FileExistsError as e:
+        exit("File " + name + " already exists.")
+
+    pass_file.writestr('pass.json', pass_)
+    pass_file.writestr('manifest.json', manifest)
+
+
+if len(argv)<2 or argv[1] is None:
+    exit("Specify input PDF.")
+
+try:
+    pdf = PdfFileReader(argv[1])
+except FileNotFoundError:
+    exit("Error reading input PDF.")
 
 all_text = "".join(page.extractText() for page in pdf.pages)
 
@@ -30,25 +80,43 @@ seats = seats_regex.findall(all_text)
 origins = origins_regex.findall(all_text)
 destinations = destinations_regex.findall(all_text)
 
-pass_ticket = []
-pass_data = []
-
-def clear_utf8(string):
-    return string.encode('ascii', 'ignore')
+all_fields = []
 
 for idx in range(2):
-    pass_ticket.append(Pass(Pass.BOARDINGPASS, '', '', ['ida', 'vuelta'][idx], '', localizers[idx]))
-    pass_ticket[idx].addPrimaryField(Field('service',clear_utf8(services[idx]),'Linea: '))
-    pass_ticket[idx].addPrimaryField(Field('localizer',clear_utf8(localizers[idx]),'Localizador: '))
-    pass_ticket[idx].addPrimaryField(Field('origin',clear_utf8(origins[idx]),'Origen: '))
-    pass_ticket[idx].addPrimaryField(Field('destination',clear_utf8(destinations[idx]),'Destino: '))
-    pass_ticket[idx].addPrimaryField(Field('date',clear_utf8(dates[idx]),'Fecha: '))
-    pass_ticket[idx].addPrimaryField(Field('time',clear_utf8(times[idx]),'Hora: '))
-    pass_ticket[idx].addPrimaryField(Field('bus',clear_utf8(buses[idx]),'Bus: '))
-    pass_ticket[idx].addPrimaryField(Field('seat',clear_utf8(seats[idx]),'Asiento: '))
+    all_fields.append([
+        format_field('service', services[idx], 'Linea: '),
+        format_field('localizer', localizers[idx], 'Localizador: '),
+        format_field('origin', origins[idx], 'Origen: '),
+        format_field('destination', destinations[idx], 'Destino: '),
+        format_field('date', dates[idx], 'Fecha: '),
+        format_field('time', times[idx], 'Hora: '),
+        format_field('bus', buses[idx], 'Bus: '),
+        format_field('seat', seats[idx], 'Asiento: '),
+    ])
 
-ticket_dir = mkdtemp()
-return_ticket_dir = mkdtemp()
-pass_ticket[0].savePackage(ticket_dir)
-pass_ticket[1].savePackage(return_ticket_dir)
+ticket = (
+    format_head("", localizers[0], "ticket_") +
+    ",".join(all_fields[0]) +
+    format_footer()
+)
+
+ticket_manifest = format_manifest(str(sha1(ticket.encode('utf-8')).hexdigest()))
+
+return_ticket = (
+    format_head("", localizers[1], "return_ticket_") +
+    ",".join(all_fields[1]) +
+    format_footer()
+)
+
+return_ticket_manifest = format_manifest(str(sha1(return_ticket.encode('utf-8')).hexdigest()))
+
+ticket_name = 'ticket_' + localizers[0] + '.pkpass'
+print("Writing " + ticket_name + " ...")
+create_pkpass(ticket_name, ticket, ticket_manifest)
+
+return_ticket_name = 'ticket_return_' + localizers[1] + '.pkpass'
+print("Writing " + return_ticket_name + " ...")
+create_pkpass(return_ticket_name, return_ticket, return_ticket_manifest)
+
+print("Done.")
 
