@@ -1,0 +1,3 @@
+M2Crypto==0.35.2
+PyPDF2==1.26.0
+ypassbook==0.1.4
