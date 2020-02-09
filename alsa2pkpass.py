@@ -1,3 +1,4 @@
+from datetime import datetime
 from hashlib import sha1
 from tempfile import mkdtemp
 from re import compile
@@ -7,12 +8,16 @@ from zipfile import ZipFile
 from PyPDF2 import PdfFileReader
 
 
-def format_head(description, serial_number, pass_type_identifier):
+def format_head(description, serial_number, date_str, time_str):
+    day, month, year = date_str.split('/')
+    hour, minute = time_str.split(':')
+    date = datetime(int(year), int(month), int(day), int(hour), int(minute))
+    relevant_date_w3c = date.strftime('%Y-%m-%dT%H:%M') + ':00+01:00'
     return f'''{{
     "organizationName": "",
     "description": "{description}",
     "serialNumber": "{serial_number}",
-    "passTypeIdentifier": "{pass_type_identifier}",
+    "relevantDate": "{relevant_date_w3c}",
     "formatVersion": 1,
     "boardingPass": {{
         "primaryFields": ['''
@@ -90,14 +95,12 @@ def main():
             format_field('localizer', localizers[idx], 'Localizador: '),
             format_field('origin', origins[idx], 'Origen: '),
             format_field('destination', destinations[idx], 'Destino: '),
-            format_field('date', dates[idx], 'Fecha: '),
-            format_field('time', times[idx], 'Hora: '),
             format_field('bus', buses[idx], 'Bus: '),
             format_field('seat', seats[idx], 'Asiento: '),
         ])
 
     ticket = (
-        format_head("", localizers[0], "ticket_") +
+        format_head(services[0], localizers[0] + "_t", dates[0], times[0]) +
         ",".join(all_fields[0]) +
         format_footer()
     )
@@ -105,7 +108,7 @@ def main():
     ticket_manifest = format_manifest(str(sha1(ticket.encode('utf-8')).hexdigest()))
 
     return_ticket = (
-        format_head("", localizers[1], "return_ticket_") +
+        format_head(services[1], localizers[1] + "_r", dates[1], times[1]) +
         ",".join(all_fields[1]) +
         format_footer()
     )
