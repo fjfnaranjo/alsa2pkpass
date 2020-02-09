@@ -18,6 +18,7 @@ def format_head(description, serial_number, date_str, time_str):
     "description": "{description}",
     "serialNumber": "{serial_number}",
     "relevantDate": "{relevant_date_w3c}",
+    "backgroundColor": "rgb(0, 31, 106)",
     "formatVersion": 1,
     "boardingPass": {{
         "primaryFields": ['''
