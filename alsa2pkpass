@@ -185,21 +185,20 @@ def main():
         exit("Specify input PDF.")
 
     try:
+        # PDFs for one way tickets have 2 pages, ticket summary and receipt
+        # PDFs with return tickets have 4 pages, with receipts in the last two pages
         page_layout = extract_pages(argv[1])
+        ticket_page = None
+        return_ticket_page = None
+        it = iter(page_layout)
+        ticket_page = next(it)
+        return_ticket_page = next(it)
+        try:
+            extra_page = next(it)
+        except StopIteration:
+            return_ticket_page = None
     except FileNotFoundError:
         exit("Error reading input PDF.")
-
-    # PDFs for one way tickets have 2 pages, ticket summary and receipt
-    # PDFs with return tickets have 4 pages, with receipts in the last two pages
-    ticket_page = None
-    return_ticket_page = None
-    it = iter(page_layout)
-    ticket_page = next(it)
-    return_ticket_page = next(it)
-    try:
-        extra_page = next(it)
-    except StopIteration:
-        return_ticket_page = None
 
     tickets = [
         parse_pdf_page(ticket_page),
@@ -221,7 +220,7 @@ def main():
             "start_time",
         ]:
             if field not in ticket:
-                raise RuntimeError(f"Field {field} missing in ticket: {ticket}")
+                exit(f"Field {field} missing in ticket: {ticket}.")
         all_fields.append(
             [
                 format_field("service", ticket["service"], "Linea: "),
