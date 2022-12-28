@@ -6,7 +6,7 @@ from sys import argv
 from zipfile import ZipFile
 
 from pdfminer.high_level import extract_pages
-from pdfminer.layout import LTTextBoxHorizontal, LTPage
+from pdfminer.layout import LTTextBoxHorizontal
 
 def format_head(description, serial_number, date_str, time_str):
     day, month, year = date_str
