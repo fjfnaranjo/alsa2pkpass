@@ -5,7 +5,7 @@ from distutils.core import setup
 setup(
     name="alsa2pkpass",
     entry_points={
-        'console_scripts': ['alsa2pkpass=alsa2pkpass:main'],
+        'console_scripts': ['alsa2pkpass=alsa2pkpass.main:main'],
     },
     install_requires=['pdfminer.six==20221105'],
 )
