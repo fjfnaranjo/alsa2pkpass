@@ -4,6 +4,19 @@ from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBoxHorizontal
 
 
+def check_ticket_missing_fields(ticket):
+    for field in [
+        "service",
+        "localizer",
+        "start_city",
+        "end_city",
+        "start_date",
+        "start_time",
+    ]:
+        if field not in ticket:
+            raise RuntimeError(f"Field {field} missing in ticket: {ticket}.")
+
+
 def parse_pdf_page(page_layout):
     ticket = {}
     date_pattern = compile(r"^(\d+) (\w+) (\d{4})\n$")
@@ -123,11 +136,17 @@ def parse_pdf(filename):
     except StopIteration:
         return_ticket_page = None
 
-    return [
+    tickets = (
         parse_pdf_page(ticket_page),
         (
             parse_pdf_page(return_ticket_page)
             if return_ticket_page is not None
             else None
         ),
-    ]
+    )
+
+    check_ticket_missing_fields(tickets[0])
+    if tickets[1] is not None:
+        check_ticket_missing_fields(tickets[1])
+
+    return tickets

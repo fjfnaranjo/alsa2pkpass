@@ -68,38 +68,22 @@ def create_pkpass(name, pass_, manifest):
     pass_file.writestr("manifest.json", manifest)
 
 
-def tickets_to_pkpass(tickets):
-    all_fields = []
-    for ticket in tickets:
-        for field in [
-            "service",
-            "localizer",
-            "start_city",
-            "end_city",
-            "start_date",
-            "start_time",
-        ]:
-            if field not in ticket:
-                raise RuntimeError(f"Field {field} missing in ticket: {ticket}.")
-        all_fields.append(
-            [
-                format_field("service", ticket["service"], "Linea: "),
-                format_field("localizer", ticket["localizer"], "Localizador: "),
-                format_field("origin", ticket["start_city"], "Origen: "),
-                format_field("destination", ticket["end_city"], "Destino: "),
-                format_field("bus", ticket["bus"] if "bus" in ticket else "-", "Bus: "),
-                format_field(
-                    "seat", ticket["seat"] if "seat" in ticket else "-", "Asiento: "
-                ),
-            ]
-        )
+def write_pkpass(ticket, serial_number, filename):
+    all_fields = [
+        format_field("service", ticket["service"], "Linea: "),
+        format_field("localizer", ticket["localizer"], "Localizador: "),
+        format_field("origin", ticket["start_city"], "Origen: "),
+        format_field("destination", ticket["end_city"], "Destino: "),
+        format_field("bus", ticket["bus"] if "bus" in ticket else "-", "Bus: "),
+        format_field("seat", ticket["seat"] if "seat" in ticket else "-", "Asiento: "),
+    ]
 
     ticket = (
         format_head(
-            tickets[0]["service"],
-            tickets[0]["localizer"] + "_t",
-            tickets[0]["start_date"],
-            tickets[0]["start_time"],
+            ticket["service"],
+            serial_number,
+            ticket["start_date"],
+            ticket["start_time"],
         )
         + ",".join(all_fields[0])
         + format_footer()
@@ -107,29 +91,4 @@ def tickets_to_pkpass(tickets):
 
     ticket_manifest = format_manifest(str(sha1(ticket.encode("utf-8")).hexdigest()))
 
-    ticket_name = "ticket_" + tickets[0]["localizer"] + ".pkpass"
-    print("Writing " + ticket_name + " ...")
-    create_pkpass(ticket_name, ticket, ticket_manifest)
-
-    if len(tickets) == 2:
-
-        return_ticket = (
-            format_head(
-                tickets[1]["service"],
-                tickets[1]["localizer"] + "_r",
-                tickets[1]["start_date"],
-                tickets[1]["start_time"],
-            )
-            + ",".join(all_fields[1])
-            + format_footer()
-        )
-
-        return_ticket_manifest = format_manifest(
-            str(sha1(return_ticket.encode("utf-8")).hexdigest())
-        )
-
-        return_ticket_name = "ticket_return_" + tickets[1]["localizer"] + ".pkpass"
-        print("Writing " + return_ticket_name + " ...")
-        create_pkpass(return_ticket_name, return_ticket, return_ticket_manifest)
-
-    print("Done.")
+    create_pkpass(filename, ticket, ticket_manifest)
