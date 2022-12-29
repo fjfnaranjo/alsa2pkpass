@@ -110,21 +110,18 @@ def parse_pdf_page(page_layout):
 
 
 def parse_pdf(filename):
+    # PDFs for one way tickets have 2 pages, ticket summary and receipt
+    # PDFs with return tickets have 4 pages, with receipts in the last two pages
+    page_layout = extract_pages(filename)
+    ticket_page = None
+    return_ticket_page = None
+    it = iter(page_layout)
+    ticket_page = next(it)
+    return_ticket_page = next(it)
     try:
-        # PDFs for one way tickets have 2 pages, ticket summary and receipt
-        # PDFs with return tickets have 4 pages, with receipts in the last two pages
-        page_layout = extract_pages(filename)
-        ticket_page = None
+        extra_page = next(it)
+    except StopIteration:
         return_ticket_page = None
-        it = iter(page_layout)
-        ticket_page = next(it)
-        return_ticket_page = next(it)
-        try:
-            extra_page = next(it)
-        except StopIteration:
-            return_ticket_page = None
-    except FileNotFoundError:
-        exit("Error reading input PDF.")
 
     return [
         parse_pdf_page(ticket_page),

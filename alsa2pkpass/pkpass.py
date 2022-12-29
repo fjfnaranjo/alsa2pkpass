@@ -62,7 +62,7 @@ def create_pkpass(name, pass_, manifest):
     try:
         pass_file = ZipFile(name, "x")
     except FileExistsError:
-        exit("File " + name + " already exists.")
+        raise RuntimeError("File " + name + " already exists.")
 
     pass_file.writestr("pass.json", pass_)
     pass_file.writestr("manifest.json", manifest)
@@ -80,7 +80,7 @@ def tickets_to_pkpass(tickets):
             "start_time",
         ]:
             if field not in ticket:
-                exit(f"Field {field} missing in ticket: {ticket}.")
+                raise RuntimeError(f"Field {field} missing in ticket: {ticket}.")
         all_fields.append(
             [
                 format_field("service", ticket["service"], "Linea: "),
