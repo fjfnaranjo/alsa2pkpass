@@ -98,7 +98,7 @@ def parse_ticket_page(page):
 
     if len(number_captures) == 1:
         ticket_data["bus"] = number_captures[0]
-    else:
+    elif len(number_captures) > 1:
         ticket_data["bus"], ticket_data["seat"], *_ = number_captures
 
     ticket_data["start_address"], ticket_data["end_address"], *_ = [
