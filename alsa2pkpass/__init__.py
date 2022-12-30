@@ -1,4 +1,3 @@
-from hashlib import sha1
 from sys import argv
 
 from alsa2pkpass.pdf import parse_pdf

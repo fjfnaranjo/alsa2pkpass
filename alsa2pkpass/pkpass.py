@@ -1,4 +1,5 @@
 from datetime import datetime
+from hashlib import sha1
 from zipfile import ZipFile
 
 
