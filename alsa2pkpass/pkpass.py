@@ -5,15 +5,17 @@ from zipfile import ZipFile
 
 
 def format_field(key, value, label):
+    filtered_value = value.replace("\n", " ")
     return f"""
             {{
-                "value": "{value}",
+                "value": "{filtered_value}",
                 "key": "{key}",
                 "label": "{label}"
             }}"""
 
 
 def format_head(description, serial_number, date_str, time_str):
+    filtered_description = description.replace("\n", " ")
     day, month, year = date_str
     month = dict(
         {
@@ -36,7 +38,7 @@ def format_head(description, serial_number, date_str, time_str):
     relevant_date_w3c = date.strftime("%Y-%m-%dT%H:%M") + ":00+01:00"
     return f"""{{
     "organizationName": "",
-    "description": "{description}",
+    "description": "{filtered_description}",
     "serialNumber": "{serial_number}",
     "relevantDate": "{relevant_date_w3c}",
     "backgroundColor": "rgb(0, 31, 106)",
