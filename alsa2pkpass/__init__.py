@@ -1,7 +1,7 @@
 from sys import argv
 
 from alsa2pkpass.pdf import parse_pdf
-from alsa2pkpass.pkpass import write_pkpass
+from alsa2pkpass.pkpass import create_pkpass
 
 
 def main():
@@ -9,18 +9,14 @@ def main():
         exit("Specify input PDF.")
 
     try:
-        ticket, return_ticket = parse_pdf(argv[1])
-        ticket_serial_number = ticket["localizer"] + "_t"
-        ticket_filename = "ticket_" + ticket["localizer"] + ".pkpass"
-        print("Writing " + ticket_filename + " ...")
-        write_pkpass(ticket, ticket_serial_number, ticket_filename)
-        if return_ticket is not None:
-            return_ticket_serial_number = return_ticket["localizer"] + "_r"
-            return_ticket_filename = "ticket_" + return_ticket["localizer"] + ".pkpass"
-            print("Writing " + return_ticket_filename + " ...")
-            write_pkpass(
-                return_ticket, return_ticket_serial_number, return_ticket_filename
-            )
+        data, return_data = parse_pdf(argv[1])
+        filename = "ticket_" + data["localizer"] + ".pkpass"
+        print("Writing " + filename + " ...")
+        create_pkpass(data, filename)
+        if return_data is not None:
+            return_filename = "ticket_" + return_data["localizer"] + ".pkpass"
+            print("Writing " + return_filename + " ...")
+            create_pkpass(return_data, return_filename, is_return=True)
 
     except FileNotFoundError:
         exit("Error reading input PDF.")

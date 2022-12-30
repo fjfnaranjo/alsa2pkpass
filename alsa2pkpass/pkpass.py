@@ -1,6 +1,16 @@
+"""Create a valid PKPASS file from ticket data."""
 from datetime import datetime
 from hashlib import sha1
 from zipfile import ZipFile
+
+
+def format_field(key, value, label):
+    return f"""
+            {{
+                "value": "{value}",
+                "key": "{key}",
+                "label": "{label}"
+            }}"""
 
 
 def format_head(description, serial_number, date_str, time_str):
@@ -35,15 +45,6 @@ def format_head(description, serial_number, date_str, time_str):
         "primaryFields": ["""
 
 
-def format_field(key, value, label):
-    return f"""
-            {{
-                "value": "{value}",
-                "key": "{key}",
-                "label": "{label}"
-            }}"""
-
-
 def format_footer():
     return """
         ],
@@ -59,37 +60,37 @@ def format_manifest(sha1sum):
 }}"""
 
 
-def create_pkpass(name, pass_, manifest):
+def write_pkpass(name, passport, manifest):
     try:
         pass_file = ZipFile(name, "x")
     except FileExistsError:
         raise RuntimeError("File " + name + " already exists.")
 
-    pass_file.writestr("pass.json", pass_)
+    pass_file.writestr("pass.json", passport)
     pass_file.writestr("manifest.json", manifest)
 
 
-def write_pkpass(ticket, serial_number, filename):
-    all_fields = [
-        format_field("service", ticket["service"], "Linea: "),
-        format_field("localizer", ticket["localizer"], "Localizador: "),
-        format_field("origin", ticket["start_city"], "Origen: "),
-        format_field("destination", ticket["end_city"], "Destino: "),
-        format_field("bus", ticket["bus"] if "bus" in ticket else "-", "Bus: "),
-        format_field("seat", ticket["seat"] if "seat" in ticket else "-", "Asiento: "),
+def create_pkpass(data, filename, is_return=False):
+    fields = [
+        format_field("service", data["service"], "Linea: "),
+        format_field("localizer", data["localizer"], "Localizador: "),
+        format_field("origin", data["start_city"], "Origen: "),
+        format_field("destination", data["end_city"], "Destino: "),
+        format_field("bus", data["bus"] if "bus" in data else "-", "Bus: "),
+        format_field("seat", data["seat"] if "seat" in data else "-", "Asiento: "),
     ]
 
-    ticket = (
+    passport = (
         format_head(
-            ticket["service"],
-            serial_number,
-            ticket["start_date"],
-            ticket["start_time"],
+            data["service"],
+            data["localizer"] + "_t" if not is_return else "_r",
+            data["start_date"],
+            data["start_time"],
         )
-        + ",".join(all_fields[0])
+        + ",".join(fields[0])
         + format_footer()
     )
 
-    ticket_manifest = format_manifest(str(sha1(ticket.encode("utf-8")).hexdigest()))
+    manifest = format_manifest(str(sha1(passport.encode("utf-8")).hexdigest()))
 
-    create_pkpass(filename, ticket, ticket_manifest)
+    write_pkpass(filename, passport, manifest)

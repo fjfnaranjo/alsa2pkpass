@@ -1,24 +1,12 @@
+"""Extract relevant ticket data from ALSA PDFs."""
 from re import compile
 
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBoxHorizontal
 
 
-def check_ticket_missing_fields(ticket):
-    for field in [
-        "service",
-        "localizer",
-        "start_city",
-        "end_city",
-        "start_date",
-        "start_time",
-    ]:
-        if field not in ticket:
-            raise RuntimeError(f"Field {field} missing in ticket: {ticket}.")
-
-
-def parse_pdf_page(page_layout):
-    ticket = {}
+def parse_ticket_page(page):
+    ticket_data = {}
     date_pattern = compile(r"^(\d+) (\w+) (\d{4})\n$")
     time_pattern = compile(r"^(\d\d:\d\d)\n$")
     text_pattern = compile(r"^(\w+)\n$")
@@ -27,7 +15,7 @@ def parse_pdf_page(page_layout):
     localizer_pattern = compile(r"^Localizador\n(.*)\n$")
 
     current = None
-    it = iter(page_layout)
+    it = iter(page)
     element = next(it)
 
     while (
@@ -43,7 +31,7 @@ def parse_pdf_page(page_layout):
         while not isinstance(element, LTTextBoxHorizontal):
             element = next(it)
         current = date_pattern.fullmatch(element.get_text())
-    ticket["start_date"] = current.groups()
+    ticket_data["start_date"] = current.groups()
     element = next(it)
 
     current = time_pattern.fullmatch(element.get_text())
@@ -52,7 +40,7 @@ def parse_pdf_page(page_layout):
         while not isinstance(element, LTTextBoxHorizontal):
             element = next(it)
         current = time_pattern.fullmatch(element.get_text())
-    ticket["start_time"] = current.group(1)
+    ticket_data["start_time"] = current.group(1)
     element = next(it)
 
     current = text_pattern.fullmatch(element.get_text())
@@ -61,7 +49,7 @@ def parse_pdf_page(page_layout):
         while not isinstance(element, LTTextBoxHorizontal):
             element = next(it)
         current = text_pattern.fullmatch(element.get_text())
-    ticket["start_city"] = current.group(1)
+    ticket_data["start_city"] = current.group(1)
     element = next(it)
 
     current = date_pattern.fullmatch(element.get_text())
@@ -70,7 +58,7 @@ def parse_pdf_page(page_layout):
         while not isinstance(element, LTTextBoxHorizontal):
             element = next(it)
         current = date_pattern.fullmatch(element.get_text())
-    ticket["end_date"] = current.groups()
+    ticket_data["end_date"] = current.groups()
     element = next(it)
 
     current = time_pattern.fullmatch(element.get_text())
@@ -79,7 +67,7 @@ def parse_pdf_page(page_layout):
         while not isinstance(element, LTTextBoxHorizontal):
             element = next(it)
         current = time_pattern.fullmatch(element.get_text())
-    ticket["end_time"] = current.group(1)
+    ticket_data["end_time"] = current.group(1)
     element = next(it)
 
     current = text_pattern.fullmatch(element.get_text())
@@ -88,12 +76,12 @@ def parse_pdf_page(page_layout):
         while not isinstance(element, LTTextBoxHorizontal):
             element = next(it)
         current = text_pattern.fullmatch(element.get_text())
-    ticket["end_city"] = current.group(1)
+    ticket_data["end_city"] = current.group(1)
     element = next(it)
 
-    ticket["start_address"] = element.get_text().rstrip("\n")
+    ticket_data["start_address"] = element.get_text().rstrip("\n")
     element = next(it)
-    ticket["end_address"] = element.get_text().rstrip("\n")
+    ticket_data["end_address"] = element.get_text().rstrip("\n")
     element = next(it)
 
     current_number = None
@@ -105,48 +93,53 @@ def parse_pdf_page(page_layout):
             current_service = service_pattern.fullmatch(element.get_text())
             current_localizer = localizer_pattern.fullmatch(element.get_text())
             if current_number is not None:
-                if "bus" not in ticket:
-                    ticket["bus"] = current_number.group(1)
+                if "bus" not in ticket_data:
+                    ticket_data["bus"] = current_number.group(1)
                 else:
-                    ticket["seat"] = current_number.group(1)
+                    ticket_data["seat"] = current_number.group(1)
             if current_service is not None:
-                ticket["service"] = current_service.group(1).strip()
+                ticket_data["service"] = current_service.group(1).strip()
             if current_localizer is not None:
-                ticket["localizer"] = current_localizer.group(1)
+                ticket_data["localizer"] = current_localizer.group(1)
             element = next(it)
             while not isinstance(element, LTTextBoxHorizontal):
                 element = next(it)
     except StopIteration:
         pass
 
-    return ticket
+    return ticket_data
+
+
+def check_missing_fields(ticket):
+    for field in [
+        "service",
+        "localizer",
+        "start_city",
+        "end_city",
+        "start_date",
+        "start_time",
+    ]:
+        if field not in ticket:
+            raise RuntimeError(f"Field {field} missing in ticket: {ticket}.")
 
 
 def parse_pdf(filename):
     # PDFs for one way tickets have 2 pages, ticket summary and receipt
     # PDFs with return tickets have 4 pages, with receipts in the last two pages
-    page_layout = extract_pages(filename)
-    ticket_page = None
-    return_ticket_page = None
-    it = iter(page_layout)
-    ticket_page = next(it)
-    return_ticket_page = next(it)
+    pages = extract_pages(filename)
+    page_iterator = iter(pages)
+    ticket_page = next(page_iterator)
+    return_ticket_page = next(page_iterator)
     try:
-        extra_page = next(it)
+        extra_page = next(page_iterator)
     except StopIteration:
         return_ticket_page = None
 
-    tickets = (
-        parse_pdf_page(ticket_page),
-        (
-            parse_pdf_page(return_ticket_page)
-            if return_ticket_page is not None
-            else None
-        ),
+    ticket_data = check_missing_fields(parse_ticket_page(ticket_page))
+    return_ticket_data = (
+        check_missing_fields(parse_ticket_page(return_ticket_page))
+        if return_ticket_page is not None
+        else None,
     )
 
-    check_ticket_missing_fields(tickets[0])
-    if tickets[1] is not None:
-        check_ticket_missing_fields(tickets[1])
-
-    return tickets
+    return (ticket_data, return_ticket_data)
