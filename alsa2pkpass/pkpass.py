@@ -82,7 +82,7 @@ def create_pkpass(data, filename, is_return=False):
 
     passport = (
         format_head(
-            data["service"],
+            f"ALSA {data['start_city']} -> {data['end_city']}",
             data["localizer"] + "_t" if not is_return else "_r",
             data["start_date"],
             data["start_time"],
