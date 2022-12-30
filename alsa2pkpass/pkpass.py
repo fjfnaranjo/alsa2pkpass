@@ -3,6 +3,11 @@ from datetime import datetime
 from hashlib import sha1
 from zipfile import ZipFile
 
+from pytz import timezone
+
+
+MADRID = timezone("Europe/Madrid")
+
 
 def format_field(key, value, label):
     filtered_value = value.replace("\n", " ")
@@ -34,8 +39,9 @@ def format_head(description, serial_number, date_str, time_str):
         }
     )[month]
     hour, minute = time_str.split(":")
-    date = datetime(int(year), month, int(day), int(hour), int(minute))
-    relevant_date_w3c = date.strftime("%Y-%m-%dT%H:%M") + ":00+01:00"
+    date = MADRID.localize(datetime(int(year), month, int(day), int(hour), int(minute)))
+    relevant_date_w3c = date.strftime("%Y-%m-%dT%H:%M:%S") + date.strftime("%z")[:5]
+    relevant_date_w3c = f"{relevant_date_w3c[:-2]}:{relevant_date_w3c[-2:]}"
     return f"""{{
     "organizationName": "",
     "description": "{filtered_description}",

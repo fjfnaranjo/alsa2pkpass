@@ -1,6 +1,6 @@
 .PHONY: black
 black:
-	@black alsa2pkpass
+	@black setup.py alsa2pkpass
 
 .PHONY: test
 test:
