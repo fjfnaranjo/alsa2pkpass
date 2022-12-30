@@ -87,7 +87,7 @@ def create_pkpass(data, filename, is_return=False):
             data["start_date"],
             data["start_time"],
         )
-        + ",".join(fields[0])
+        + ",".join(fields)
         + format_footer()
     )
 
