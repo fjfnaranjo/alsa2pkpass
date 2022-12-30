@@ -2,131 +2,119 @@
 from re import compile
 
 from pdfminer.high_level import extract_pages
-from pdfminer.layout import LTTextBoxHorizontal
+from pdfminer.layout import LTTextBoxHorizontal, LAParams
 
 
 def parse_ticket_page(page):
     ticket_data = {}
-    date_pattern = compile(r"^(\d+) (\w+) (\d{4})\n$")
-    time_pattern = compile(r"^(\d\d:\d\d)\n$")
-    text_pattern = compile(r"^(\w+)\n$")
-    number_pattern = compile(r"^(\d+)\n$")
-    service_pattern = compile(r"^Paradas: .*\nLínea: (.*)\n$")
-    localizer_pattern = compile(r"^Localizador\n(.*)\n$")
 
-    current = None
-    it = iter(page)
-    element = next(it)
+    date_pattern = compile(r"^(\d+) (\w+) (\d{4})$")
+    time_pattern = compile(r"^\d\d:\d\d$")
+    number_pattern = compile(r"^(\d+)$")
+    service_pattern = compile(r"^Línea: (.*)$")
 
-    while (
-        not isinstance(element, LTTextBoxHorizontal)
-        or element.get_text() != "Tu billete\n"
-    ):
-        element = next(it)
-    element = next(it)
+    capture_origin = False
+    capture_origin_address = False
+    capture_destination = False
+    capture_destination_address = False
+    last_block_size = None
+    last_block = []
+    date_captures = []
+    time_captures = []
+    capture_numbers = False
+    number_captures = []
+    capture_localizer = False
 
-    current = date_pattern.fullmatch(element.get_text())
-    while current is None:
-        element = next(it)
-        while not isinstance(element, LTTextBoxHorizontal):
-            element = next(it)
-        current = date_pattern.fullmatch(element.get_text())
-    ticket_data["start_date"] = current.groups()
-    element = next(it)
+    for element in page:
+        if isinstance(element, LTTextBoxHorizontal):
+            element_text = element.get_text().rstrip("\n")
+            date_match = date_pattern.fullmatch(element_text)
+            time_match = time_pattern.fullmatch(element_text)
+            number_match = number_pattern.fullmatch(element_text)
+            service_match = service_pattern.fullmatch(element_text)
 
-    current = time_pattern.fullmatch(element.get_text())
-    while current is None:
-        element = next(it)
-        while not isinstance(element, LTTextBoxHorizontal):
-            element = next(it)
-        current = time_pattern.fullmatch(element.get_text())
-    ticket_data["start_time"] = current.group(1)
-    element = next(it)
-
-    current = text_pattern.fullmatch(element.get_text())
-    while current is None:
-        element = next(it)
-        while not isinstance(element, LTTextBoxHorizontal):
-            element = next(it)
-        current = text_pattern.fullmatch(element.get_text())
-    ticket_data["start_city"] = current.group(1)
-    element = next(it)
-
-    current = date_pattern.fullmatch(element.get_text())
-    while current is None:
-        element = next(it)
-        while not isinstance(element, LTTextBoxHorizontal):
-            element = next(it)
-        current = date_pattern.fullmatch(element.get_text())
-    ticket_data["end_date"] = current.groups()
-    element = next(it)
-
-    current = time_pattern.fullmatch(element.get_text())
-    while current is None:
-        element = next(it)
-        while not isinstance(element, LTTextBoxHorizontal):
-            element = next(it)
-        current = time_pattern.fullmatch(element.get_text())
-    ticket_data["end_time"] = current.group(1)
-    element = next(it)
-
-    current = text_pattern.fullmatch(element.get_text())
-    while current is None:
-        element = next(it)
-        while not isinstance(element, LTTextBoxHorizontal):
-            element = next(it)
-        current = text_pattern.fullmatch(element.get_text())
-    ticket_data["end_city"] = current.group(1)
-    element = next(it)
-
-    ticket_data["start_address"] = element.get_text().rstrip("\n")
-    element = next(it)
-    ticket_data["end_address"] = element.get_text().rstrip("\n")
-    element = next(it)
-
-    current_number = None
-    current_service = None
-    current_localizer = None
-    try:
-        while True:
-            current_number = number_pattern.fullmatch(element.get_text())
-            current_service = service_pattern.fullmatch(element.get_text())
-            current_localizer = localizer_pattern.fullmatch(element.get_text())
-            if current_number is not None:
-                if "bus" not in ticket_data:
-                    ticket_data["bus"] = current_number.group(1)
+            if any(
+                [
+                    capture_origin,
+                    capture_origin_address,
+                    capture_destination,
+                    capture_destination_address,
+                ]
+            ):
+                if last_block_size is None:
+                    last_block_size = element.height
+                    last_block.append(element_text)
+                elif last_block_size == element.height:
+                    last_block.append(element_text)
                 else:
-                    ticket_data["seat"] = current_number.group(1)
-            if current_service is not None:
-                ticket_data["service"] = current_service.group(1).strip()
-            if current_localizer is not None:
-                ticket_data["localizer"] = current_localizer.group(1)
-            element = next(it)
-            while not isinstance(element, LTTextBoxHorizontal):
-                element = next(it)
-    except StopIteration:
-        pass
+                    block_as_paragraph = "\n".join(last_block)
+                    last_block_size = None
+                    last_block = []
+                    if capture_origin:
+                        capture_origin = False
+                        capture_origin_address = True
+                        ticket_data["start_city"] = block_as_paragraph
+                    elif capture_origin_address:
+                        capture_origin_address = False
+                        ticket_data["start_address"] = block_as_paragraph
+                    elif capture_destination:
+                        capture_destination = False
+                        capture_destination_address = True
+                        ticket_data["end_city"] = block_as_paragraph
+                    elif capture_destination_address:
+                        capture_destination_address = False
+                        ticket_data["end_address"] = block_as_paragraph
 
-    return ticket_data
+            elif date_match is not None:
+                date_captures.append(date_match.groups())
 
+            elif time_match is not None:
+                time_captures.append(time_match.string)
+                if "start_city" not in ticket_data:
+                    capture_origin = True
+                elif "end_city" not in ticket_data:
+                    capture_destination = True
 
-def check_missing_fields(ticket):
+            elif element_text == "Asiento":
+                capture_numbers = True
+
+            elif capture_numbers and number_match is not None:
+                number_captures.append(number_match.group(1))
+
+            elif service_match is not None:
+                ticket_data["service"] = service_match.group(1).strip()
+
+            elif element_text == "Localizador":
+                capture_localizer = True
+
+            elif capture_localizer:
+                capture_localizer = False
+                ticket_data["localizer"] = element_text
+
+    ticket_data["start_date"], ticket_data["end_date"], *_ = date_captures
+    ticket_data["start_time"], ticket_data["end_time"], *_ = time_captures
+
+    if len(number_captures) == 1:
+        ticket_data["bus"] = number_captures[0]
+    else:
+        ticket_data["bus"], ticket_data["seat"], *_ = number_captures
+
     for field in [
         "service",
         "localizer",
         "start_city",
         "end_city",
-        "start_date",
-        "start_time",
     ]:
-        if field not in ticket:
+        if field not in ticket_data:
             raise RuntimeError(f"Field {field} missing in ticket: {ticket}.")
+
+    return ticket_data
 
 
 def parse_pdf(filename):
     # PDFs for one way tickets have 2 pages, ticket summary and receipt
     # PDFs with return tickets have 4 pages, with receipts in the last two pages
-    pages = extract_pages(filename)
+    pages = extract_pages(filename, laparams=LAParams(line_margin=0))
     page_iterator = iter(pages)
     ticket_page = next(page_iterator)
     return_ticket_page = next(page_iterator)
@@ -135,11 +123,11 @@ def parse_pdf(filename):
     except StopIteration:
         return_ticket_page = None
 
-    ticket_data = check_missing_fields(parse_ticket_page(ticket_page))
+    ticket_data = parse_ticket_page(ticket_page)
     return_ticket_data = (
-        check_missing_fields(parse_ticket_page(return_ticket_page))
+        parse_ticket_page(return_ticket_page)
         if return_ticket_page is not None
-        else None,
+        else None
     )
 
-    return (ticket_data, return_ticket_data)
+    return ticket_data, return_ticket_data
