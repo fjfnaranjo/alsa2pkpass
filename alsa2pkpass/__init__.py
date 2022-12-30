@@ -14,7 +14,7 @@ def main():
         print("Writing " + filename + " ...")
         create_pkpass(data, filename)
         if return_data is not None:
-            return_filename = "ticket_" + return_data["localizer"] + ".pkpass"
+            return_filename = "ticket_return_" + return_data["localizer"] + ".pkpass"
             print("Writing " + return_filename + " ...")
             create_pkpass(return_data, return_filename, is_return=True)
 
